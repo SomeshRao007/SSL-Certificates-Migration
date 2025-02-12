@@ -1,4 +1,4 @@
-# Ansible Role: Traefik to Certbot Certificate Migration
+# Ansible Role: Traefik to Nginx Certbot Certificate Migration
 
 This Ansible role facilitates the migration of SSL certificates from Traefik's ACME storage to Certbot's directory structure. It handles the extraction, conversion, and proper setup of certificates while maintaining all necessary metadata and permissions.
 
