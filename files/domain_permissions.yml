@@ -1,0 +1,18 @@
+- name: "Set archive directory permissions"
+  file:
+    path: "/etc/letsencrypt/archive/{{ domain_name }}"
+    mode: "0755"
+
+- name: "Set permissions for PEM files in archive"
+  file:
+    path: "/etc/letsencrypt/archive/{{ domain_name }}/{{ item }}"
+    mode: "0600"
+  loop:
+    - "cert1.pem"
+    - "privkey1.pem"
+    - "fullchain1.pem"
+
+- name: "Set live directory permissions"
+  file:
+    path: "/etc/letsencrypt/live/{{ domain_name }}"
+    mode: "0755"

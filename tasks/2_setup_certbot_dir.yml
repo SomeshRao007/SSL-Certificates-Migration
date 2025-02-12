@@ -1,0 +1,100 @@
+
+
+- name: "Create base Certbot directories"
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "/etc/letsencrypt/live"
+    - "/etc/letsencrypt/archive"
+    - "/etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory/{{ account_id }}"
+
+- name: "Convert account key to JWK using Python snippet"
+  shell: |
+    python3 <<'EOF'
+    import json, base64
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.backends import default_backend
+
+    def b64url(data):
+        return base64.urlsafe_b64encode(data).rstrip(b'=').decode('ascii')
+
+    with open("/tmp/cert_migration/account.key", "rb") as f:
+        data = f.read()
+
+    if b"BEGIN" not in data:
+        try:
+            data = base64.b64decode(data)
+        except Exception as e:
+            raise ValueError("Failed to base64-decode account key data") from e
+
+    try:
+        key = serialization.load_pem_private_key(data, password=None, backend=default_backend())
+    except ValueError:
+        key = serialization.load_der_private_key(data, password=None, backend=default_backend())
+
+    numbers = key.private_numbers()
+    pub_numbers = numbers.public_numbers
+    jwk = {
+        "kty": "RSA",
+        "n": b64url(pub_numbers.n.to_bytes((pub_numbers.n.bit_length() + 7) // 8, 'big')),
+        "e": b64url(pub_numbers.e.to_bytes((pub_numbers.e.bit_length() + 7) // 8, 'big')),
+        "d": b64url(numbers.d.to_bytes((numbers.d.bit_length() + 7) // 8, 'big')),
+        "p": b64url(numbers.p.to_bytes((numbers.p.bit_length() + 7) // 8, 'big')),
+        "q": b64url(numbers.q.to_bytes((numbers.q.bit_length() + 7) // 8, 'big')),
+        "dp": b64url(numbers.dmp1.to_bytes((numbers.dmp1.bit_length() + 7) // 8, 'big')),
+        "dq": b64url(numbers.dmq1.to_bytes((numbers.dmq1.bit_length() + 7) // 8, 'big')),
+        "qi": b64url(numbers.iqmp.to_bytes((numbers.iqmp.bit_length() + 7) // 8, 'big'))
+    }
+    print(json.dumps(jwk))
+    EOF
+  register: jwk_result
+  changed_when: false
+
+- name: "Fail if JWK conversion failed"
+  fail:
+    msg: "Failed to convert account key to JWK format."
+  when: jwk_result.stdout == ""
+
+- name: "Save converted account key"
+  copy:
+    content: "{{ jwk_result.stdout }}"
+    dest: "/etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory/{{ account_id }}/private_key.json"
+    mode: "0600"
+
+- name: "Get hostname"
+  command: hostname -f
+  register: hostname_result
+  changed_when: false
+  failed_when: false
+
+- name: "Create account registration file"
+  copy:
+    dest: "/etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory/{{ account_id }}/regr.json"
+    content: |
+      {
+        "body": {
+          "status": "valid",
+          "contact": [],
+          "key": {{ jwk_result.stdout }},
+          "creation_host": "{{ hostname_result.stdout | default(ansible_hostname) }}"
+        },
+        "uri": "https://acme-v02.api.letsencrypt.org/acme/acct/{{ account_id }}"
+      }
+    mode: "0600"
+
+- name: "Find domain directories"
+  find:
+    paths: /tmp/cert_migration
+    file_type: directory
+    patterns: "*"
+    depth: 1
+  register: domain_dirs
+
+- name: "Process domains"
+  include_tasks: ./files/process_domain_certs.yml
+  loop: "{{ domain_dirs.files }}"
+  loop_control:
+    loop_var: domain_item
+

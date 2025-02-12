@@ -1,0 +1,14 @@
+
+- name: "Find live domain directories under /etc/letsencrypt/live"
+  find:
+    paths: /etc/letsencrypt/live
+    file_type: directory
+    depth: 1
+  register: live_dirs
+
+- name: "Process chain files for each domain"
+  include_tasks: ./files/domain_chain_tasks.yml
+  loop: "{{ live_dirs.files }}"
+  loop_control:
+    loop_var: domain_item
+    label: "{{ domain_item.path | basename }}"

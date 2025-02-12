@@ -1,0 +1,21 @@
+
+- name: "Set certificate list from acme.json"
+  set_fact:
+    certificates: "{{ acme_data.letsencrypt.Certificates }}"
+  when: acme_data.letsencrypt.Certificates is defined
+
+- name: "Process certificates"
+  include_tasks: ./files/loop_extract_cert.yml
+  loop: "{{ certificates | default([]) }}"
+  loop_control:
+    loop_var: cert_item
+  when: certificates is defined
+
+- name: "List contents of /tmp/cert_migration for verification"
+  command: ls -la /tmp/cert_migration
+  register: temp_dir_listing
+  changed_when: false
+
+- name: "Show directory contents"
+  debug:
+    var: temp_dir_listing.stdout_lines

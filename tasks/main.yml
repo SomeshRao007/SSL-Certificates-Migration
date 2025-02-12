@@ -1,0 +1,46 @@
+---
+- name: "Create temporary directory for certificate migration"
+  file:
+    path: /tmp/cert_migration
+    state: directory
+    mode: "0755"
+
+- name: "Read Traefik acme.json file"
+  slurp:
+    src: /etc/cloudpepper/acme.json
+  register: acme_json_file
+
+- name: "Parse acme.json content"
+  set_fact:
+    acme_data: "{{ acme_json_file.content | b64decode | from_json }}"
+
+- name: "Extract account key from acme.json"
+  copy:
+    content: "{{ acme_data.letsencrypt.Account.PrivateKey }}"
+    dest: /tmp/cert_migration/account.key
+    mode: "0644"
+
+- name: "Extract Account ID from registration URI"
+  set_fact:
+    account_id: "{{ acme_data.letsencrypt.Account.Registration.uri | regex_search('[0-9]+$', '\\0') }}"
+
+- name: "Debug: Show extracted Account ID"
+  debug:
+    msg: "Found Account ID: {{ account_id }}"
+
+
+- include_tasks: 1_extract_certs.yml
+- include_tasks: 2_setup_certbot_dir.yml
+- include_tasks: 3_set_permissions.yml
+- include_tasks: 4_set_chain_files.yml
+
+
+# - name: Migrate from Traefik to Nginx using existing Certbot certificates
+
+#   vars:
+#     # List your domains along with the certificate directory names.
+#     # (They match what certbot lists as the "Certificate Name".)
+#     domains:
+#       - name: "yvxnvbqu2m.172.236.182.110.nip.io"
+#     letsencrypt_live_path: "/etc/letsencrypt/live"
+#   include_tasks: migrate_nginx.yml

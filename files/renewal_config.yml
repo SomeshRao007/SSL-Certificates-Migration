@@ -1,0 +1,19 @@
+
+
+- name: "Create renewal configuration"
+  copy:
+    dest: "/etc/letsencrypt/renewal/{{ domain_name }}.conf"
+    content: |
+      # renew_before_expiry = 30 days
+      version = 2.1.0
+      archive_dir = /etc/letsencrypt/archive/{{ domain_name }}
+      cert = /etc/letsencrypt/live/{{ domain_name }}/cert.pem
+      privkey = /etc/letsencrypt/live/{{ domain_name }}/privkey.pem
+      chain = /etc/letsencrypt/live/{{ domain_name }}/chain.pem
+      fullchain = /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem
+
+      [renewalparams]
+      account = {{ account_id }}
+      authenticator = webroot
+      server = https://acme-v02.api.letsencrypt.org/directory
+    mode: "0600"

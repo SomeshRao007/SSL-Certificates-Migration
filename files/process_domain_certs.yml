@@ -1,0 +1,38 @@
+
+- name: "Create domain directories"
+  file:
+    path: "{{ item }}/{{ domain_item.path | basename }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "/etc/letsencrypt/live"
+    - "/etc/letsencrypt/archive"
+
+- name: "Extract leaf certificate"
+  command: "openssl x509 -in /tmp/cert_migration/{{ domain_item.path | basename }}/fullchain.pem -out /etc/letsencrypt/archive/{{ domain_item.path | basename }}/cert1.pem"
+  args:
+    creates: "/etc/letsencrypt/archive/{{ domain_item.path | basename }}/cert1.pem"
+
+- name: "Copy private key"
+  copy:
+    src: "/tmp/cert_migration/{{ domain_item.path | basename }}/privkey.pem"
+    dest: "/etc/letsencrypt/archive/{{ domain_item.path | basename }}/privkey1.pem"
+    mode: "0600"
+    remote_src: yes
+
+- name: "Copy fullchain certificate"
+  copy:
+    src: "/tmp/cert_migration/{{ domain_item.path | basename }}/fullchain.pem"
+    dest: "/etc/letsencrypt/archive/{{ domain_item.path | basename }}/fullchain1.pem"
+    mode: "0644"
+    remote_src: yes
+
+- name: "Create certificate symlinks"
+  file:
+    src: "../../archive/{{ domain_item.path | basename }}/{{ item }}"
+    dest: "/etc/letsencrypt/live/{{ domain_item.path | basename }}/{{ item | regex_replace('1.pem$', '.pem') }}"
+    state: link
+  loop:
+    - "privkey1.pem"
+    - "cert1.pem"
+    - "fullchain1.pem"

@@ -1,0 +1,68 @@
+- name: Stop Traefik service
+  systemd:
+    name: traefik
+    state: stopped
+    enabled: no
+  failed_when: false
+
+- name: Remove Traefik binary
+  file:
+    path: /usr/bin/traefik
+    state: absent
+  failed_when: false
+
+- name: Remove Traefik systemd service file
+  file:
+    path: /lib/systemd/system/traefik.service
+    state: absent
+  failed_when: false
+
+# - name: Remove Traefik ACME file
+#   file:
+#     path: /etc/cloudpepper/acme.json
+#     state: absent
+#   failed_when: false
+
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
+
+- name: Clean up APT cache
+  apt:
+    autoclean: yes
+
+- name: Install nginx
+  become: true
+  apt:
+    name: nginx
+    state: present
+    update_cache: yes
+
+- name: Remove default nginx site configuration if it exists
+  become: true
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload nginx
+
+- name: Create nginx site configuration for each domain
+  become: true
+  template:
+    src: ./templates/nginx_site.conf.j2
+    dest: "/etc/nginx/sites-available/{{ domain.name }}.conf"
+    mode: "0644"
+  loop: "{{ domains }}"
+  loop_control:
+    loop_var: domain
+  notify: Reload nginx
+
+- name: Enable nginx site by linking configuration to sites-enabled
+  become: true
+  file:
+    src: "/etc/nginx/sites-available/{{ domain.name }}.conf"
+    dest: "/etc/nginx/sites-enabled/{{ domain.name }}.conf"
+    state: link
+  loop: "{{ domains }}"
+  loop_control:
+    loop_var: domain
+  notify: Reload nginx

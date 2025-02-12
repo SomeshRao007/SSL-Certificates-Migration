@@ -1,0 +1,81 @@
+
+- name: "Get list of domains from /etc/letsencrypt/live"
+  command: "ls -1 /etc/letsencrypt/live"
+  register: live_domains_list
+  changed_when: false
+
+- name: "Ensure renewal directory exists"
+  file:
+    path: "/etc/letsencrypt/renewal"
+    state: directory
+    mode: "0755"
+
+- name: "Set permissions for main Certbot directories"
+  file:
+    path: "{{ item.path }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "/etc/letsencrypt", mode: "0755" }
+    - { path: "/etc/letsencrypt/live", mode: "0755" }
+    - { path: "/etc/letsencrypt/archive", mode: "0755" }
+    - { path: "/etc/letsencrypt/renewal", mode: "0755"}
+
+- name: "Process domain permissions"
+  include_tasks: ./files/domain_permissions.yml
+  loop: "{{ live_domains_list.stdout_lines }}"
+  loop_control:
+    loop_var: domain_name
+
+- name: "Set permissions for account directory"
+  file:
+    path: "/etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory/{{ account_id }}"
+    mode: "0700"
+
+- name: "Set permissions for account files"
+  file:
+    path: "/etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory/{{ account_id }}/{{ item }}"
+    mode: "0600"
+  loop:
+    - "private_key.json"
+    - "regr.json"
+
+- name: "Check if meta.json exists"
+  stat:
+    path: "/etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory/{{ account_id }}/meta.json"
+  register: meta_json_stat
+
+- name: "Get hostname"
+  shell: |
+    if command -v hostname >/dev/null 2>&1; then
+      hostname -f || hostname
+    else
+      cat /etc/hostname 2>/dev/null || uname -n
+    fi
+  register: hostname_result
+  changed_when: false
+  when: not meta_json_stat.stat.exists
+
+- name: "Create meta.json for account"
+  copy:
+    dest: "/etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory/{{ account_id }}/meta.json"
+    content: |
+      {
+        "creation_dt": "{{ now().strftime('%Y-%m-%dT%H:%M:%SZ') }}",
+        "creation_host": "{{ ansible_fqdn | default(hostname_result.stdout) }}",
+        "registration": {
+          "body": {
+            "status": "valid",
+            "contact": []
+          },
+          "uri": "https://acme-v02.api.letsencrypt.org/acme/acct/{{ account_id }}"
+        },
+        "account": "{{ account_id }}"
+      }
+    mode: "0600"
+  when: not meta_json_stat.stat.exists
+
+- name: "Process renewal configurations"
+  include_tasks: ./files/renewal_config.yml
+  loop: "{{ live_domains_list.stdout_lines }}"
+  loop_control:
+    loop_var: domain_name

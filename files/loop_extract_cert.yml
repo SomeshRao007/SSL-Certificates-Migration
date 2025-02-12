@@ -1,0 +1,23 @@
+- name: "Create directory for domain"
+  file:
+    path: "/tmp/cert_migration/{{ cert_item.domain.main }}"
+    state: directory
+    mode: "0755"
+
+- name: "Write cert.pem for domain"
+  copy:
+    content: "{{ cert_item.certificate | b64decode }}"
+    dest: "/tmp/cert_migration/{{ cert_item.domain.main }}/cert.pem"
+    mode: "0644"
+
+- name: "Write privkey.pem for domain"
+  copy:
+    content: "{{ cert_item.key | b64decode }}"
+    dest: "/tmp/cert_migration/{{ cert_item.domain.main }}/privkey.pem"
+    mode: "0600"
+
+- name: "Write fullchain.pem for domain"
+  copy:
+    content: "{{ cert_item.certificate | b64decode }}"
+    dest: "/tmp/cert_migration/{{ cert_item.domain.main }}/fullchain.pem"
+    mode: "0644"

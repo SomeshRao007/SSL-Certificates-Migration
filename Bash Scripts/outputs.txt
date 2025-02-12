@@ -1,0 +1,27 @@
+
+root@localhost:~# sudo certbot show_account
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+Account details for server https://acme-v02.api.letsencrypt.org/directory:
+  Account URL: https://acme-v02.api.letsencrypt.org/acme/acct/2xxxxxx55
+  Email contact: 
+root@localhost:~# sudo certbot certificates
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Found the following certs:
+  Certificate Name: 5mdvbq4co5e.1xxxx10.nip.io
+    Serial Number: 3e4faaeef2d20d4d930dd0f1b5ddedc2872
+    Key Type: RSA
+    Domains: 5mdvbq4co5e.1xxxxx10.nip.io
+    Expiry Date: 2025-04-30 04:56:08+00:00 (VALID: 78 days)
+    Certificate Path: /etc/letsencrypt/live/5mdvbq4co5e.1xxxxxx10.nip.io/fullchain.pem
+    Private Key Path: /etc/letsencrypt/live/5mdvbq4co5e.1xxxxxx10.nip.io/privkey.pem
+  Certificate Name: yvxnvbqu2m.1xxxxxx10.nip.io
+    Serial Number: 3925cc67033fe237ab77e4ddf1c8bee5c2d
+    Key Type: RSA
+    Domains: yvxnvbqu2m.172.236.182.110.nip.io
+    Expiry Date: 2025-05-08 05:32:01+00:00 (VALID: 86 days)
+    Certificate Path: /etc/letsencrypt/live/yvxnvbqu2m.1xxxxxxx10.nip.io/fullchain.pem
+    Private Key Path: /etc/letsencrypt/live/yvxnvbqu2m.1xxxxxxx10.nip.io/privkey.pem
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+

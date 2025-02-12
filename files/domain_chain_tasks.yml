@@ -1,0 +1,38 @@
+
+- name: "Set domain variable for readability"
+  set_fact:
+    domain_name: "{{ domain_item.path | basename }}"
+
+- name: "Extract chain1.pem from fullchain1.pem"
+  shell: |
+    awk 'BEGIN {c=0} /BEGIN CERTIFICATE/{c++} {if(c==2){print}} /END CERTIFICATE/{if(c==2) exit}' /etc/letsencrypt/archive/{{ domain_name }}/fullchain1.pem > /etc/letsencrypt/archive/{{ domain_name }}/chain1.pem
+  args:
+    executable: /bin/bash
+
+- name: "Check if chain1.pem is empty"
+  stat:
+    path: "/etc/letsencrypt/archive/{{ domain_name }}/chain1.pem"
+  register: chain1_stat
+
+- name: "Download Let's Encrypt R3 intermediate if chain1.pem is empty"
+  get_url:
+    url: "https://letsencrypt.org/certs/letsencrypt-r3.pem"
+    dest: "/etc/letsencrypt/archive/{{ domain_name }}/chain1.pem"
+  when: chain1_stat.stat.size | int == 0
+
+- name: "Rebuild fullchain1.pem"
+  shell: |
+    cat /etc/letsencrypt/archive/{{ domain_name }}/cert1.pem /etc/letsencrypt/archive/{{ domain_name }}/chain1.pem > /etc/letsencrypt/archive/{{ domain_name }}/fullchain1.pem
+  args:
+    executable: /bin/bash
+
+- name: "Create symlink for chain.pem in live directory"
+  file:
+    src: "../../archive/{{ domain_name }}/chain1.pem"
+    dest: "/etc/letsencrypt/live/{{ domain_name }}/chain.pem"
+    state: link
+
+- name: "Set permission for chain1.pem in archive"
+  file:
+    path: "/etc/letsencrypt/archive/{{ domain_name }}/chain1.pem"
+    mode: "0600"
